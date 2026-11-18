@@ -41,6 +41,9 @@ textarea {
 .sample .dot { text-emphasis: filled dot var(--ai); text-emphasis-position: over right; }
 .sample.dotted { text-decoration: underline dotted var(--odo) 2px; text-underline-offset: .3em; }
 .unverified { text-decoration: underline dotted var(--odo) 2px; text-underline-offset: .3em; }
+.foot { margin-top: 24px; font-size: 12px; line-height: 1.6; color: var(--sumi-2); }
+.foot p { margin: 0 0 4px; }
+.foot a { color: inherit; text-decoration: underline; text-underline-offset: .2em; }
 .bar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 1;
   display: flex; align-items: center; gap: 8px; justify-content: flex-end;

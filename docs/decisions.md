@@ -2,7 +2,7 @@
 
 1行に1つ。日付・判断・理由。
 
-- 2026-11-18 作業場所は `C:\Users\datpa\Documents\dev\kyukana-converter` の新規リポジトリ — 依頼で別プロジェクトとして指定されたため。
+- 2026-11-18 作業場所は 新規リポジトリ — 依頼で別プロジェクトとして指定されたため。
 - 2026-11-18 形態素解析器は lindera-wasm-web-ipadic 2.0.0 を採用 — 計測で配信サイズ wasm 13.1MB（gzip 11.9MB）・初期化 約165ms。kuromoji.js 0.1.2 は辞書 17.8MB・約379ms・最終更新2016年。Sudachi WASM（sudachi-wasm333 1.0.4）はパッケージ 125MB でスマホに不向き。3つとも品詞・活用型・活用形・読みは取れる。ライセンスは lindera=MIT、kuromoji=Apache-2.0、Sudachi=Apache-2.0。
 - 2026-11-18 計測環境は Windows 11 の Node 26（PC）で、スマホ実機の時間は未計測 — 実機を使えないため。相対比較として使う。
 - 2026-11-18 lindera 2.0.0 は活用型と活用形を入れ替えて返すので、アダプタで「段・型・特殊・」を含む方を活用型として正規化する — 実際の出力（言う→conjugationType=基本形）で確認したため。
@@ -47,3 +47,14 @@
 - 2026-11-18 公開は GitHub Actions（push to main と手動実行）で `npm ci`・`npm test`・`npm run build` の後に Pages へデプロイする — テストが落ちた版は公開しないため。
 - 2026-11-18 コードは MIT、`data/dict.json` は CC BY-SA 4.0 とする — Wiktionary で確かめた事実を含むため。lindera は MIT で、IPADIC のライセンスは npm パッケージに別ファイルで同梱されていないので、README に「同梱されていない」と書き、上流の確認を促す。
 - 2026-11-18 PWA: precache-manifest.json（版の識別子と全ファイル一覧）はビルド後に Vite プラグインが dist の中身から作り、sw.js はインストール時にそれを取得して全部保存する。保存名は kyukana-<版>、有効化時に古い版を消す。同一オリジンの GET は保存済み優先、保存になければネットワーク。登録は本番ビルドのみ。
+- 2026-11-18 既知の制限: ひらがなの「きょうと」は今日＋と と読まれて「けふと」になる（京都なら きやうと）— 解析器の分け方による同音異義語の限界で、「きのう」（昨日／木の） と同じ種類。ひらがなだけでは区別できないので直さない。
+- 2026-11-18 sw.js の版（VERSION）はビルド時に Vite プラグイン（`scripts/precache-plugin.js`）が dist/sw.js のプレースホルダ `__PRECACHE_VERSION__` へ書き込む。版は sw.js（置換前）を含む全ファイルの名前と中身のハッシュで、内容が同じなら同じ版になる — 以前は版が precache-manifest.json にしかなく sw.js のバイト列が変わらないため、再訪者のブラウザが新しい版を検知しなかった。
+- 2026-11-18 sw.js は install では precache-manifest.json を取ってファイル一覧に使う（版が VERSION と違えば失敗させて古い一覧を混ぜない）。activate では manifest を取らず VERSION だけで古い保存を消し、fetch は caches.open(kyukana-<版>) の中だけを探す — 一覧の埋め込みはビルドの手間が増えるだけで利点が小さいため、一覧は取得のまま。
+- 2026-11-18 sw.js の cache.match は `ignoreVary: true` で呼ぶ — vite preview や GitHub Pages は `Vary: Origin`（Pages は Accept-Encoding も）を付け、module・CSS の要求は Origin を持つが保存時の要求は持たないので、既定だと一致せずオフラインの再読み込みが失敗した（ブラウザで確認済み）。
+- 2026-11-18 sw.js のインストールで `cache: 'reload'` を使うのは assets/ の外（index・アイコン・manifest 等、名前が変わらないファイル）だけにした。assets/ はハッシュ付きなので通常の取得にする — 全部 reload だと13MBのwasmがページ読み込みと保存で2回ダウンロードされていた。
+- 2026-11-18 ライセンス表示は `public/THIRD_PARTY_LICENSES.txt` に、lindera の MIT（node_modules の LICENSE をそのまま）と IPADIC の COPYING（https://raw.githubusercontent.com/taku910/mecab/master/mecab-ipadic/COPYING をそのまま）を入れ、画面下の小さな脚注からリンクする。IPADIC の原文の末尾にある文字化けした1行（バイト 0xF7 0xF7 のみ）は UTF-8 で表示できないため省いた — 再配布時に著作権表示と免責文を含める条件（IPADIC）と MIT の表示条件を満たすため。上の「同梱されていない」の記述は、この表示を同梱したので置き換わった。
+- 2026-11-18 脚注には辞書データのCC BY-SA 4.0と出典（文化庁「現代仮名遣い」付表、Wiktionary）、ソースコードへのリンクも置いた — CC BY-SA の帰属表示を画面から辿れるようにするため。
+- 2026-11-18 manifest の theme_color をページの明るい側の theme-color と同じ #EEF0EC にした — アイコンの藍色背景は icon 自体に塗られていて theme_color と独立なので、インストール後の枠の色はページと揃えてよいため（暗い配色では index.html の meta が優先される）。
+- 2026-11-18 テストの実行は `node --test "tests/**/*.test.js"`（Node 22 以上で glob 可、CI は Node 22）— ディレクトリ指定だと tests/helpers の補助ファイルも走らせてしまい、拡張子で絞る方が明確なため。
+- 2026-11-18 Vite プラグインを vite.config.js から `scripts/precache-plugin.js` に移し、`writePrecache(outDir)` を単体でテストできるようにした（tests/sw.test.js）— 版の埋め込みと一覧生成をビルドせずに検証するため。
+- 2026-11-18 辞書の全項目に出典 `src` があり、すべて `sources` に存在することを tests/dict.test.js で検査する — README の「src は必須」の規則を機械的に守るため。

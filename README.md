@@ -2,7 +2,7 @@
 
 いまの仮名遣いで書いた文を、歴史的仮名遣い（旧かな）に直すWebアプリです。ブラウザだけで動きます。
 
-公開URL: （公開後に記入）
+公開URL: https://datpackfromf.github.io/kyukana-converter/
 
 ## 使い方
 
@@ -60,7 +60,7 @@ npm run cases    # 例文の結果一覧
 npm run build    # 公開用のビルド（dist/）
 ```
 
-`main` に push すると、GitHub Actions がテストとビルドを行い、GitHub Pages に公開します。
+`main` に push すると、GitHub Actions がテストとビルドを行い、GitHub Pages に公開します。公開するには、リポジトリの Settings → Pages で Source を「GitHub Actions」にしておく必要があります。
 
 ## 既知の制限
 
@@ -70,4 +70,4 @@ npm run build    # 公開用のビルド（dist/）
 
 - コード: MIT（`LICENSE`）。
 - `data/dict.json`: CC BY-SA 4.0。Wiktionary（CC BY-SA 4.0 / GFDL）で確かめた事実を含むためです。
-- lindera（`lindera-wasm-web-ipadic`）: MIT。パッケージ内の `LICENSE` は MIT のみです。解析に使う IPADIC 辞書のライセンスは、このパッケージに別ファイルとして同梱されていません。IPADIC は独自のライセンスで配布されているため、再配布する場合は上流の表示を確認してください。
+- lindera（`lindera-wasm-web-ipadic`）: MIT。解析に使う IPADIC 辞書は独自のライセンスで、パッケージには別ファイルで同梱されていません。そこで、lindera の MIT 全文と、上流（taku910/mecab）の IPADIC の `COPYING` 全文を `public/THIRD_PARTY_LICENSES.txt` に入れ、公開ページの「ライセンス」リンクから読めるようにしています。
