@@ -4,6 +4,7 @@ import dictJson from '../data/dict.json';
 import { createAnalyzer } from './analyzer.js';
 import { createDict } from './engine/dict.js';
 import { createConverter } from './engine/convert.js';
+import { changedMask } from './diff.js';
 import { countX, X_LIMIT } from './engine/count.js';
 
 const $ = (id) => document.getElementById(id);
@@ -38,15 +39,8 @@ function showMessage(text) {
 
 /** 変換後の字（text）のうち元の字（source）から変わった所だけを圏点の span にする */
 function appendConverted(frag, seg) {
-  const to = Array.from(seg.text);
-  const from = Array.from(seg.source);
-  if (to.length !== from.length) {
-    const span = document.createElement('span');
-    span.className = 'converted';
-    span.textContent = seg.text;
-    frag.append(span);
-    return;
-  }
+  const chars = Array.from(seg.text);
+  const mask = changedMask(seg.source, seg.text);
   let run = '';
   let runChanged = false;
   const flush = () => {
@@ -61,10 +55,9 @@ function appendConverted(frag, seg) {
     }
     run = '';
   };
-  to.forEach((ch, i) => {
-    const changed = ch !== from[i];
-    if (changed !== runChanged) flush();
-    runChanged = changed;
+  chars.forEach((ch, i) => {
+    if (mask[i] !== runChanged) flush();
+    runChanged = mask[i];
     run += ch;
   });
   flush();
