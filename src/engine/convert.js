@@ -1,7 +1,7 @@
 // 変換本体: 0層（解析と再分割）→ 1層（規則）→ 2層（辞書）をまとめる。
 // 解析器と辞書は引数で受け取る純粋な処理で、入力文はどこにも送らない。
 
-import { toHiragana, hasKanji, smallToLarge, hasAmbiguousKana } from './kana.js';
+import { toHiragana, isHiraganaOnly, hasKanji, smallToLarge, hasAmbiguousKana } from './kana.js';
 import {
   posKind, isConjugating, verbTypeMatches, stemLength,
   isWaGodan, waGodanEnding, isVolitionalU, takesVolitionalA, volitionalA,
@@ -29,39 +29,66 @@ const hiraganaOf = (s) => s.replace(/[^ぁ-ゟ]/g, '');
 
 /**
  * lindera は長いひらがな列で「き|ょうはゆうがた…（未知語）」のように、ひらがなを含む長い未知語を返すことがある。
- * そのときは未知語の手前の語から、未知語の出ない長さまで前から区切って解析し直す
- * （最後のトークンは区切りで切れている可能性があるので次に回す）。
  * @param {Token} t
  */
 const isBrokenUnknown = (t) => (t.pos === 'UNK' || t.pos === '') && t.surface.length > 1 && HIRAGANA.test(t.surface);
 
+/** 解析し直す1回分の長さの上限。全体の手間を入力の長さにほぼ比例させるため。 */
+const REPAIR_WINDOW = 32;
+/** 語の始まりにならない小書きのかな */
+const SMALL_KANA_START = /^[ぁぃぅぇぉっゃゅょゎゕゖ]/;
+
+/** @param {string} surface @returns {Token} */
+const unknownToken = (surface) => ({ surface, pos: 'UNK', pos1: '', pos2: '', cType: '', cForm: '', base: '', reading: '' });
+
 /**
+ * 壊れた未知語（とその手前の語）の範囲を、REPAIR_WINDOW 字以内の区切りごとに、未知語の出ない長さまで
+ * 半分ずつ縮めて解析する。最後のトークンは区切りで切れている可能性があるので次の区切りに回す。
+ * 小書きのかなで始まる所は、その1字を未知語として進める。
+ * @param {Analyzer} analyzer @param {string} span
+ * @returns {Token[]}
+ */
+function repairSpan(analyzer, span) {
+  /** @type {Token[]} */
+  const out = [];
+  let pos = 0;
+  while (pos < span.length) {
+    const chunk = span.slice(pos, pos + REPAIR_WINDOW);
+    const isLast = pos + chunk.length === span.length;
+    /** @type {Token[]} */
+    let take;
+    if (SMALL_KANA_START.test(chunk)) {
+      take = [unknownToken(chunk[0])];
+    } else {
+      for (let len = chunk.length; ; len = Math.ceil(len / 2)) {
+        const part = analyzer.tokenize(chunk.slice(0, len));
+        if (part.some(isBrokenUnknown)) continue; // 1文字なら必ず抜ける
+        take = (len === chunk.length && isLast) || part.length === 1 ? part : part.slice(0, -1);
+        break;
+      }
+    }
+    out.push(...take);
+    pos += lengthOf(take);
+  }
+  return out;
+}
+
+/**
+ * 解析は全体を1回だけ行い、壊れた未知語の所だけを repairSpan で直す。
  * @param {Analyzer} analyzer @param {string} text
  * @returns {Token[]} 表層形を連結すると text になる
  */
 function tokenizeRobust(analyzer, text) {
   /** @type {Token[]} */
   const out = [];
-  let rest = text;
-  while (rest) {
-    const tokens = analyzer.tokenize(rest);
-    const bad = tokens.findIndex(isBrokenUnknown);
-    if (bad < 0) {
-      out.push(...tokens);
-      break;
+  for (const t of analyzer.tokenize(text)) {
+    if (!isBrokenUnknown(t)) {
+      out.push(t);
+      continue;
     }
-    const keep = tokens.slice(0, Math.max(0, bad - 1));
-    out.push(...keep);
-    rest = rest.slice(lengthOf(keep));
-    const windowLength = lengthOf(tokens.slice(keep.length, bad + 1));
-    for (let len = windowLength; ; len = Math.ceil(len / 2)) {
-      const part = analyzer.tokenize(rest.slice(0, len));
-      if (part.some(isBrokenUnknown)) continue; // 1文字なら必ず抜ける
-      const take = len === windowLength || part.length === 1 ? part : part.slice(0, -1);
-      out.push(...take);
-      rest = rest.slice(lengthOf(take));
-      break;
-    }
+    // 手前のひらがなの語（「き|ょう…」の「き」）も誤りの一部なので一緒に解析し直す
+    const prev = out.length && HIRAGANA.test(out[out.length - 1].surface) ? out.pop() : null;
+    out.push(...repairSpan(analyzer, (prev ? prev.surface : '') + t.surface));
   }
   return out;
 }
@@ -180,7 +207,10 @@ function convertConjugating(dict, t, next) {
     const reading = toHiragana(t.reading);
     if (reading.startsWith(modernStem) && entry.historical.length === entry.modern.length) {
       const mapped = mapReading(surface, reading, entry.historical.slice(0, -1) + reading.slice(modernStem.length));
-      if (mapped !== null) {
+      // ひらがなだけの語で辞書が同じ形（こえる→こえる）のときは、解析の取り違え（声→越え）を見分けられないので
+      // 確認済みの根拠にしない。形が変わる項目はそのまま当てる。
+      const identity = entry.historical === entry.modern && isHiraganaOnly(t.surface);
+      if (mapped !== null && !identity) {
         surface = mapped;
         decided = true;
       }
@@ -268,12 +298,14 @@ export function createConverter({ analyzer, dict }) {
         const tokens = resegment(analyzer, dict, text, tokenizeRobust(analyzer, text));
         for (let i = 0; i < tokens.length; i++) {
           const seg = convertToken(dict, tokens[i], tokens[i + 1]);
-          // 小書き→大書きは最後に、ひらがなを含む語にだけ当てる（片仮名だけの語・記号などは対象外）。status は変えない。
+          // 小書き→大書きは最後に、ひらがなを含む語にだけ当てる（片仮名だけの語・記号などは対象外）。
+          // それで変わった kept の語は converted にする。unverified は判定していないので unverified のまま。
           const out = large && HIRAGANA.test(seg.text) ? smallToLarge(seg.text) : seg.text;
           if (!out) continue;
+          const status = seg.status === 'kept' && out !== tokens[i].surface ? 'converted' : seg.status;
           const last = segments[segments.length - 1];
-          if (last && last.status === seg.status) last.text += out;
-          else segments.push({ text: out, status: seg.status });
+          if (last && last.status === status) last.text += out;
+          else segments.push({ text: out, status });
         }
       }
       return { output: segments.map((s) => s.text).join(''), segments };

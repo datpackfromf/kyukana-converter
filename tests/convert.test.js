@@ -145,3 +145,46 @@ describe('segments', () => {
     assert.equal(r.segments.map((s) => s.text).join(''), r.output);
   });
 });
+
+describe('レビュー指摘への対応', () => {
+  /** 決まった並びの「ランダムな」ひらがな（線形合同法） */
+  function randomHiragana(n, seed = 12345) {
+    let x = seed;
+    let s = '';
+    for (let i = 0; i < n; i++) {
+      x = (x * 1103515245 + 12345) % 2147483648;
+      s += String.fromCharCode(0x3041 + (x % 83));
+    }
+    return s;
+  }
+  for (const [name, input] of [
+    ["'ょ'×8000", 'ょ'.repeat(8000)],
+    ['ランダムなひらがな5000字', randomHiragana(5000)],
+  ]) {
+    test(`長い入力が1秒以内に終わる: ${name}`, () => {
+      const t0 = performance.now();
+      const r = conv.convert(input);
+      const ms = performance.now() - t0;
+      assert.equal(r.segments.map((s) => s.text).join(''), r.output);
+      assert.ok(ms < 1000, `${ms.toFixed(0)}ms`);
+    });
+  }
+
+  test('ひらがなの活用語で辞書が同じ形（こえる→こえる）でも、語幹に紛らわしい仮名があれば unverified', () => {
+    const r = conv.convert('こえをだす');
+    assert.equal(r.output, 'こえをだす');
+    const seg = r.segments.find((s) => s.text.includes('こえ'));
+    assert.ok(seg);
+    assert.equal(seg.status, 'unverified');
+  });
+
+  test('小書き→大書きだけで変わった語も converted', () => {
+    assert.deepEqual(conv.convert('買った').segments, [
+      { text: '買つ', status: 'converted' },
+      { text: 'た', status: 'kept' },
+    ]);
+    assert.deepEqual(conv.convert('買った', { smallToLarge: false }).segments, [
+      { text: '買った', status: 'kept' },
+    ]);
+  });
+});

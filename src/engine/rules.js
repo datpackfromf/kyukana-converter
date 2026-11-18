@@ -15,11 +15,6 @@ export function posKind(t) {
   return Object.hasOwn(POS_KIND, t.pos) ? POS_KIND[t.pos] : 'other';
 }
 
-/** 語彙として扱わないトークン（未知語・解析器の隙間・記号） */
-export function isNonLexical(t) {
-  return t.pos === '' || t.pos === 'UNK' || t.pos === '記号';
-}
-
 /** @param {Token} t 活用する語（動詞・形容詞）か */
 export function isConjugating(t) {
   return t.pos === '動詞' || t.pos === '形容詞';
