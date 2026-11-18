@@ -1,0 +1,16 @@
+{
+  "name": "旧かな変換",
+  "short_name": "旧かな",
+  "description": "いまの仮名遣いで書いた文を、歴史的仮名遣い（旧かな）に直します。",
+  "lang": "ja",
+  "start_url": "/kyukana-converter/",
+  "scope": "/kyukana-converter/",
+  "display": "standalone",
+  "background_color": "#EEF0EC",
+  "theme_color": "#284A78",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

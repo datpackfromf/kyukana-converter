@@ -46,3 +46,4 @@
 - 2026-11-18 画面の方向: システムの明朝・ゴシックだけを使い（Webフォントなし＝外部への通信なし）、旧かなに直した字は圏点（text-emphasis）、未確認は点線の下線で示す。
 - 2026-11-18 公開は GitHub Actions（push to main と手動実行）で `npm ci`・`npm test`・`npm run build` の後に Pages へデプロイする — テストが落ちた版は公開しないため。
 - 2026-11-18 コードは MIT、`data/dict.json` は CC BY-SA 4.0 とする — Wiktionary で確かめた事実を含むため。lindera は MIT で、IPADIC のライセンスは npm パッケージに別ファイルで同梱されていないので、README に「同梱されていない」と書き、上流の確認を促す。
+- 2026-11-18 PWA: precache-manifest.json（版の識別子と全ファイル一覧）はビルド後に Vite プラグインが dist の中身から作り、sw.js はインストール時にそれを取得して全部保存する。保存名は kyukana-<版>、有効化時に古い版を消す。同一オリジンの GET は保存済み優先、保存になければネットワーク。登録は本番ビルドのみ。
