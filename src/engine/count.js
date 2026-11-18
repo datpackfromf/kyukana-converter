@@ -7,7 +7,18 @@ const URL_WEIGHT = 23;
 const LIGHT = [
   [0x0000, 0x10ff], [0x2000, 0x200d], [0x2010, 0x201f], [0x2032, 0x2037],
 ];
-const segmenter = new Intl.Segmenter('ja', { granularity: 'grapheme' });
+/** @type {{ segment(s: string): Iterable<{ segment: string }> } | null} */
+let segmenter = null;
+
+/** 書記素ごとに分ける。Intl.Segmenter がない環境ではコードポイントごと。初回の呼び出しで作る。 */
+function graphemes(s) {
+  if (!segmenter) {
+    segmenter = typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function'
+      ? new Intl.Segmenter('ja', { granularity: 'grapheme' })
+      : { segment: (x) => Array.from(x, (segment) => ({ segment })) };
+  }
+  return segmenter.segment(s);
+}
 
 function cpWeight(cp) {
   return LIGHT.some(([a, b]) => cp >= a && cp <= b) ? 1 : 2;
@@ -20,7 +31,7 @@ export function countX(text) {
     total += URL_WEIGHT;
     return m.match(/[.,!?;:)'"]*$/)[0]; // 末尾の句読点はURLに含めない
   });
-  for (const { segment } of segmenter.segment(rest)) {
+  for (const { segment } of graphemes(rest)) {
     if (/\p{Extended_Pictographic}|^[\u{1F1E6}-\u{1F1FF}]|\u20E3/u.test(segment)) {
       total += 2;
     } else {

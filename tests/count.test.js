@@ -30,3 +30,15 @@ test('trailing paren and quote are not part of URL', () => {
   assert.equal(countX("https://x.com/a'"), 24);
 });
 test('scheme is case-insensitive', () => assert.equal(countX('HTTPS://x.com'), 23));
+
+test('Intl.Segmenter がない環境でも読み込めて、コードポイントごとに数える', async () => {
+  const saved = Intl.Segmenter;
+  try {
+    // @ts-ignore
+    delete Intl.Segmenter;
+    const { countX: count } = await import('../src/engine/count.js?no-segmenter');
+    assert.equal(count('あa🙂'), 2 + 1 + 2);
+  } finally {
+    Intl.Segmenter = saved;
+  }
+});

@@ -328,6 +328,14 @@
   {"modern":"こうして","historical":"かうして","pos":"adverb","scan":true,"src":["fuhyo","wikt"]},
   {"modern":"そうして","historical":"さうして","pos":"adverb","scan":true,"src":["fuhyo"]},
   {"modern":"ようございます","historical":"ようございます","pos":"other","scan":true,"src":["fuhyo"]},
-  {"modern":"ありがとうございます","historical":"ありがたうございます","pos":"interjection","scan":true,"src":["wikt"]}
+  {"modern":"ありがとうございます","historical":"ありがたうございます","pos":"interjection","scan":true,"src":["wikt"]},
+  {"modern":"いう","historical":"いふ","kanji":"言う","pos":"verb","type":"godan","src":["wikt"]},
+  {"modern":"おもう","historical":"おもふ","kanji":"思う","pos":"verb","type":"godan","src":["wikt"]},
+  {"modern":"あう","historical":"あふ","kanji":"会う","pos":"verb","type":"godan","src":["wikt"]},
+  {"modern":"かう","historical":"かふ","kanji":"買う","pos":"verb","type":"godan","src":["wikt"]},
+  {"modern":"つかう","historical":"つかふ","kanji":"使う","pos":"verb","type":"godan","src":["wikt"]},
+  {"modern":"もらう","historical":"もらふ","kanji":"貰う","pos":"verb","type":"godan","src":["wikt"]},
+  {"modern":"ちがう","historical":"ちがふ","kanji":"違う","pos":"verb","type":"godan","src":["wikt"]},
+  {"modern":"わらう","historical":"わらふ","kanji":"笑う","pos":"verb","type":"godan","src":["wikt"]}
  ]
 }

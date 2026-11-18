@@ -143,13 +143,16 @@ function mapReading(surface, reading, converted) {
     else runs.push({ text: ch, kana });
   }
   const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`^${runs.map((r) => (r.kana ? `(${escape(toHiragana(r.text))})` : '(.+?)')).join('')}$`, 'd');
+  const re = new RegExp(`^${runs.map((r) => (r.kana ? `(${escape(toHiragana(r.text))})` : '(.+?)')).join('')}$`);
   const m = re.exec(reading);
-  if (!m?.indices) return null;
+  if (!m) return null;
+  // 各グループは読みを先頭から隙間なく分けるので、位置は長さの累計で決まる（RegExp の d フラグに頼らない）
+  let end = 0;
   return runs
     .map((r, i) => {
+      const s = end;
+      const e = (end += m[i + 1].length);
       if (!r.kana) return r.text;
-      const [s, e] = /** @type {[number, number]} */ (m.indices[i + 1]);
       // 元が片仮名の字は片仮名で返す
       return [...converted.slice(s, e)]
         .map((c, j) => (r.text[j] !== toHiragana(r.text[j]) ? String.fromCharCode(c.charCodeAt(0) + 0x60) : c))
@@ -202,6 +205,7 @@ function convertConjugating(dict, t, next) {
   const n = stemLength(t.surface, t.base);
   let surface = t.surface;
   let decided = !hasAmbiguousKana(hiraganaOf(surface.slice(0, n)));
+  let fromDict = false;
   if (entry) {
     const modernStem = entry.modern.slice(0, -1);
     const reading = toHiragana(t.reading);
@@ -213,12 +217,17 @@ function convertConjugating(dict, t, next) {
       if (mapped !== null && !identity) {
         surface = mapped;
         decided = true;
+        fromDict = true;
       }
     }
   }
   const ending = isWaGodan(t.cType) ? waGodanEnding(surface.slice(n)) : surface.slice(n);
   let text = surface.slice(0, n) + ending;
   if (isVolitionalU(next) && takesVolitionalA(t)) text = volitionalA(text);
+  // ひらがなだけの動詞で語幹が1字以下（ゆう｜しゃ、すう｜がく）は解析の取り違えが多く、規則だけでは根拠にならない。
+  // 辞書に項目がなければ、書き換えが起きる場合は unverified にする（みる・した のように変わらない語はそのまま）。
+  // 形容詞（よかろう→よからう）は対象外。
+  if (!fromDict && t.pos === '動詞' && isHiraganaOnly(t.surface) && n <= 1 && text !== t.surface) decided = false;
   return result(t.surface, text, decided);
 }
 
@@ -248,15 +257,20 @@ function convertOther(dict, t) {
   if (stem !== null) return result(t.surface, stem, true);
 
   const kind = posKind(t);
-  /** @param {Entry} e */
-  const compatible = (e) =>
-    e.pos !== 'verb' &&
-    (e.pos !== 'adjective' || t.pos1 === '形容動詞語幹') &&
-    e.pos !== 'particle' && e.pos !== 'auxiliary';
-  const exact = (e) => e.pos === kind && compatible(e);
-  const key = hasKanji(t.surface) ? t.base || t.surface : t.surface;
-  const lookup = hasKanji(t.surface) ? dict.byLemma : dict.bySurface;
-  const entry = t.pos && t.pos !== 'UNK' ? lookup(key, exact) ?? lookup(key, compatible) : null;
+  const adjectivalNoun = t.pos1 === '形容動詞語幹';
+  /** 品詞が同じ項目（形容動詞語幹の名詞は形容詞の項目も） @param {Entry} e */
+  const exact = (e) => e.pos === kind || (adjectivalNoun && e.pos === 'adjective');
+  /** 名詞と副詞の間だけ取り違えを許す（接続詞・感動詞・連体詞 などは品詞が同じ項目だけ） @param {Entry} e */
+  const near = (e) => (kind === 'noun' && e.pos === 'adverb') || (kind === 'adverb' && e.pos === 'noun');
+  const kanji = hasKanji(t.surface);
+  const key = kanji ? t.base || t.surface : t.surface;
+  const lookup = kanji ? dict.byLemma : dict.bySurface;
+  let entry = null;
+  if (t.pos && t.pos !== 'UNK') {
+    entry = lookup(key, exact) ?? lookup(key, near);
+    // scan:true の語は文字列だけで拾ってよい語なので、品詞が違っても表層形が同じなら使う（接続詞の そうして 等）
+    if (!entry && !kanji) entry = dict.bySurface(t.surface, (e) => !!e.scan);
+  }
   if (entry) {
     const reading = hasKanji(t.surface) ? toHiragana(t.reading) : t.surface;
     const mapped = applyWhole(t.surface, reading, entry);
@@ -280,6 +294,34 @@ function convertToken(dict, t, next) {
 
 // ---------------------------------------------------------------- 本体
 
+const COMBINING_MARK = /[゙゚]/;
+const COMBINING_MARK_START = /^[゙゚]/;
+const KATAKANA_ONLY = /^[ァ-ヺー-ヿｦ-ﾟ]+$/;
+const CONTENT_POS = new Set(['名詞', '動詞', '形容詞', '副詞']);
+
+/**
+ * 片仮名語・未知語（ヤバ・エモ・ﾔﾊﾞ）にすぐ続く ひらがなの内容語（い・く 等）か。
+ * 「ヤバい」の「い」を 居る と読むような取り違えになるので、辞書も規則も当てない。
+ * 片仮名のサ変名詞に続く する（テストした）と、助詞・助動詞（コーヒーを・テストだった）は対象外。
+ * 空白・記号・絵文字の後は対象外（文字 \p{L} か結合用の濁点・半濁点を含む未知語だけを見る）。
+ * @param {WorkToken|undefined} prev @param {WorkToken} t
+ */
+function followsForeignWord(prev, t) {
+  if (!prev || t.scanEntry || !CONTENT_POS.has(t.pos) || !isHiraganaOnly(t.surface)) return false;
+  const unknownWord = (prev.pos === 'UNK' || prev.pos === '') && /[\p{L}゙゚]/u.test(prev.surface);
+  if (!unknownWord && !KATAKANA_ONLY.test(prev.surface)) return false;
+  if (prev.pos1 === 'サ変接続' && t.cType.startsWith('サ変')) return false;
+  return true;
+}
+
+/** 同じ status が続くときはまとめて足す @param {Segment[]} segments @param {string} text @param {Status} status */
+function push(segments, text, status) {
+  if (!text) return;
+  const last = segments[segments.length - 1];
+  if (last && last.status === status) last.text += text;
+  else segments.push({ text, status });
+}
+
 /**
  * @param {{ analyzer: Analyzer, dict: Dict }} deps
  */
@@ -297,15 +339,20 @@ export function createConverter({ analyzer, dict }) {
       if (text) {
         const tokens = resegment(analyzer, dict, text, tokenizeRobust(analyzer, text));
         for (let i = 0; i < tokens.length; i++) {
-          const seg = convertToken(dict, tokens[i], tokens[i + 1]);
+          const t = tokens[i];
+          if (COMBINING_MARK.test(t.surface) || COMBINING_MARK_START.test(tokens[i + 1]?.surface ?? '')) {
+            // 結合用の濁点・半濁点が付く仮名は、書き換えると別の字になりうる（かう＋゛→かふ＋゛＝かぶ）ので触らない
+            const kana = KANA_CHAR.test(t.surface) || COMBINING_MARK.test(t.surface);
+            push(segments, t.surface, kana ? 'unverified' : 'kept');
+            continue;
+          }
+          const seg = followsForeignWord(tokens[i - 1], t)
+            ? { text: t.surface, status: /** @type {Status} */ ('unverified') }
+            : convertToken(dict, t, tokens[i + 1]);
           // 小書き→大書きは最後に、ひらがなを含む語にだけ当てる（片仮名だけの語・記号などは対象外）。
           // それで変わった kept の語は converted にする。unverified は判定していないので unverified のまま。
           const out = large && HIRAGANA.test(seg.text) ? smallToLarge(seg.text) : seg.text;
-          if (!out) continue;
-          const status = seg.status === 'kept' && out !== tokens[i].surface ? 'converted' : seg.status;
-          const last = segments[segments.length - 1];
-          if (last && last.status === status) last.text += out;
-          else segments.push({ text: out, status });
+          push(segments, out, seg.status === 'kept' && out !== t.surface ? 'converted' : seg.status);
         }
       }
       return { output: segments.map((s) => s.text).join(''), segments };

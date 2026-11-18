@@ -108,5 +108,14 @@
   {"input":"今日はテストだった😭","expected":"今日はテストだつた😭","source":"spec"},
   {"input":"ありがとう https://example.com/a?x=1","expected":"ありがたう https://example.com/a?x=1","source":"wikt"},
   {"input":"おはよう！スタバに行く","expected":"おはやう！スタバに行く","source":"wikt"},
-  {"input":"チョウチョウ","expected":"チョウチョウ","source":"decision"}
+  {"input":"チョウチョウ","expected":"チョウチョウ","source":"decision"},
+  {"input":"ヤバい","expected":"ヤバい","source":"decision"},
+  {"input":"エモい","expected":"エモい","source":"decision"},
+  {"input":"ﾔﾊﾞい","expected":"ﾔﾊﾞい","source":"decision"},
+  {"input":"マジでヤバい","expected":"マジでヤバい","source":"decision"},
+  {"input":"ゆうしゃ","expected":"ゆうしゃ","options":{"smallToLarge":false},"source":"decision"},
+  {"input":"ゆうめい","expected":"ゆうめい","source":"decision"},
+  {"input":"ゆうき","expected":"ゆうき","source":"decision"},
+  {"input":"すうがく","expected":"すうがく","source":"decision"},
+  {"input":"いえ、ちがいます","expected":"いえ、ちがひます","source":"decision"}
 ]

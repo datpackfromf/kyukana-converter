@@ -188,3 +188,72 @@ describe('レビュー指摘への対応', () => {
     ]);
   });
 });
+
+describe('ブランチ全体レビューの指摘', () => {
+  /** @param {string} input @param {string} part その文字を含む segment が unverified */
+  function expectUnverified(input, part, expected = input) {
+    test(`${input} → ${expected}（${part} は unverified）`, () => {
+      const r = conv.convert(input);
+      assert.equal(r.output, expected);
+      const seg = r.segments.find((s) => s.text.includes(part));
+      assert.ok(seg, `${part} を含む segment がない: ${JSON.stringify(r.segments)}`);
+      assert.equal(seg.status, 'unverified');
+    });
+  }
+
+  describe('片仮名・未知語に続く ひらがなの内容語は判定しない', () => {
+    for (const w of ['ヤバい', 'エモい', 'ウザい', 'スゴい', 'ﾔﾊﾞい', 'マジでヤバい']) expectUnverified(w, 'い');
+    expectOut('コーヒーを飲んでいる', 'コーヒーを飲んでゐる');
+    expectOut('今日はテストだった', '今日はテストだつた');
+  });
+
+  describe('語幹が1字以下の ひらがなの動詞は辞書がなければ変えない', () => {
+    for (const w of ['ゆうめい', 'ゆうき', 'ゆうれい', 'ゆうじん', 'ゆうた', 'すうがく', 'ぬうぼう']) {
+      expectUnverified(w, w[0]);
+    }
+    // 小書き→大書き（初期ON）は unverified の部分にも当たる
+    expectUnverified('ゆうしゃ', 'ゆう', 'ゆうしや');
+    expectUnverified('ゆうりょう', 'ゆう', 'ゆうりよう');
+    // 形容詞は対象外
+    expectOut('よかろう', 'よからう');
+    expectOut('いう', 'いふ');
+    expectOut('かう', 'かふ');
+    expectOut('おもう', 'おもふ');
+    expectOut('みる', 'みる');
+    expectOut('した', 'した');
+  });
+
+  describe('活用しない語の品詞の取り違え', () => {
+    expectUnverified('いえ、ちがいます', 'いえ', 'いえ、ちがひます');
+    expectOut('そうして家に帰った', 'さうして家に帰つた');
+  });
+
+  describe('結合用の濁点・半濁点', () => {
+    expectUnverified('か' + 'う\u3099', 'う\u3099');
+    expectUnverified('は\u309Aい', 'は');
+  });
+
+  test('ランダムな入力でも、仮名以外は変わらず、segments の連結は output', () => {
+    const alphabet = [
+      ...'あいうえおかがきぎくぐけげこごさしすせそたちつてとなにぬねのはばぱひふへほまみむめもやゆよらりるれろわをんぁぃぅぇぉっゃゅょゎゔ',
+      ...'アイウエオカガキクケコサシスセソタチツテトナニヌネノハバパヒフヘホマミムメモヤユヨラリルレロワヲンァィゥェォッャュョー',
+      ...'ｱｲｳｴｵﾔﾊﾞﾟ', ...'今日雨降家思言買考見行来大小中', ...'abcXYZ019 .,!?/:', '\n', '、', '。', '！', '🙂', '🎉', '\u3099', '\u309A',
+    ];
+    const notKana = (s) => s.replace(/[\u3040-\u30FF\uFF66-\uFF9F]/g, '');
+    let x = 2026;
+    const rand = (n) => {
+      x = (x * 1103515245 + 12345) % 2147483648;
+      return x % n;
+    };
+    for (let k = 0; k < 300; k++) {
+      let input = '';
+      const len = 1 + rand(40);
+      for (let i = 0; i < len; i++) input += alphabet[rand(alphabet.length)];
+      for (const smallToLarge of [true, false]) {
+        const r = conv.convert(input, { smallToLarge });
+        assert.equal(r.segments.map((s) => s.text).join(''), r.output, JSON.stringify(input));
+        assert.equal(notKana(r.output), notKana(input), JSON.stringify(input));
+      }
+    }
+  });
+});
