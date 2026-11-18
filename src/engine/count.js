@@ -16,9 +16,9 @@ function cpWeight(cp) {
 /** @param {string} text @returns {number} */
 export function countX(text) {
   let total = 0;
-  const rest = text.normalize('NFC').replace(/https?:\/\/[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+/g, () => {
+  const rest = text.normalize('NFC').replace(/https?:\/\/[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+/gi, (m) => {
     total += URL_WEIGHT;
-    return '';
+    return m.match(/[.,!?;:)'"]*$/)[0]; // 末尾の句読点はURLに含めない
   });
   for (const { segment } of segmenter.segment(rest)) {
     if (/\p{Extended_Pictographic}|^[\u{1F1E6}-\u{1F1FF}]|\u20E3/u.test(segment)) {

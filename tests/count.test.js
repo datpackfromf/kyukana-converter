@@ -22,3 +22,11 @@ test('keycap', () => assert.equal(countX('1️⃣'), 2));
 test('text-style heart with VS16', () => assert.equal(countX('❤️'), 2));
 test('NFC normalization', () => assert.equal(countX('か\u3099'), 2));
 test('whitespace', () => assert.equal(countX('  \n'), 3));
+test('trailing period is not part of URL', () => assert.equal(countX('https://x.com/a.'), 24));
+test('trailing comma is not part of URL', () =>
+  assert.equal(countX('見て https://x.com/a, ok'), 2 + 2 + 1 + 23 + 1 + 1 + 2));
+test('trailing paren and quote are not part of URL', () => {
+  assert.equal(countX('(https://x.com/a)'), 1 + 23 + 1);
+  assert.equal(countX("https://x.com/a'"), 24);
+});
+test('scheme is case-insensitive', () => assert.equal(countX('HTTPS://x.com'), 23));
