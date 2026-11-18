@@ -13,7 +13,7 @@ import {
 /** @typedef {import('./dict.js').Dict} Dict */
 /** @typedef {import('./dict.js').Entry} Entry */
 /** @typedef {'kept'|'converted'|'unverified'} Status */
-/** @typedef {{ text: string, status: Status }} Segment */
+/** @typedef {{ text: string, status: Status, source: string }} Segment source は元の入力の同じ部分 */
 /** @typedef {Token & { scanEntry?: Entry }} WorkToken */
 
 const HIRAGANA = /[ぁ-ゟ]/;
@@ -315,11 +315,13 @@ function followsForeignWord(prev, t) {
 }
 
 /** 同じ status が続くときはまとめて足す @param {Segment[]} segments @param {string} text @param {Status} status */
-function push(segments, text, status) {
-  if (!text) return;
+function push(segments, text, status, source) {
+  if (!text && !source) return;
   const last = segments[segments.length - 1];
-  if (last && last.status === status) last.text += text;
-  else segments.push({ text, status });
+  if (last && last.status === status) {
+    last.text += text;
+    last.source += source;
+  } else segments.push({ text, status, source });
 }
 
 /**
@@ -343,7 +345,7 @@ export function createConverter({ analyzer, dict }) {
           if (COMBINING_MARK.test(t.surface) || COMBINING_MARK_START.test(tokens[i + 1]?.surface ?? '')) {
             // 結合用の濁点・半濁点が付く仮名は、書き換えると別の字になりうる（かう＋゛→かふ＋゛＝かぶ）ので触らない
             const kana = KANA_CHAR.test(t.surface) || COMBINING_MARK.test(t.surface);
-            push(segments, t.surface, kana ? 'unverified' : 'kept');
+            push(segments, t.surface, kana ? 'unverified' : 'kept', t.surface);
             continue;
           }
           const seg = followsForeignWord(tokens[i - 1], t)
@@ -352,7 +354,7 @@ export function createConverter({ analyzer, dict }) {
           // 小書き→大書きは最後に、ひらがなを含む語にだけ当てる（片仮名だけの語・記号などは対象外）。
           // それで変わった kept の語は converted にする。unverified は判定していないので unverified のまま。
           const out = large && HIRAGANA.test(seg.text) ? smallToLarge(seg.text) : seg.text;
-          push(segments, out, seg.status === 'kept' && out !== t.surface ? 'converted' : seg.status);
+          push(segments, out, seg.status === 'kept' && out !== t.surface ? 'converted' : seg.status, t.surface);
         }
       }
       return { output: segments.map((s) => s.text).join(''), segments };

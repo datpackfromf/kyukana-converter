@@ -36,6 +36,10 @@ textarea {
 #status { color: var(--sumi-2); font-size: 17px; }
 .output[hidden], #status[hidden] { display: none; }
 .converted { text-emphasis: filled dot var(--ai); text-emphasis-position: over right; }
+.legend-item { display: block; margin-top: 2px; }
+.sample { font: 17px var(--mincho); color: var(--ink); margin-right: .4em; }
+.sample .dot { text-emphasis: filled dot var(--ai); text-emphasis-position: over right; }
+.sample.dotted { text-decoration: underline dotted var(--odo) 2px; text-underline-offset: .3em; }
 .unverified { text-decoration: underline dotted var(--odo) 2px; text-underline-offset: .3em; }
 .bar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 1;
@@ -44,6 +48,7 @@ textarea {
   background: var(--paper); border-top: 1px solid var(--rule);
 }
 .count { margin-right: auto; font-variant-numeric: tabular-nums; color: var(--sumi-2); }
+.btn.primary { min-width: 8em; }
 .count.over { color: var(--shu); font-weight: 700; }
 .btn {
   min-height: 44px; padding: 0 18px; display: inline-flex; align-items: center; justify-content: center;

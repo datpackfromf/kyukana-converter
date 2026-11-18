@@ -13,6 +13,7 @@ const status = $('status');
 const count = $('count');
 const copyBtn = $('copy');
 const post = $('post');
+const copyLive = $('copy-live');
 const small = $('small-to-large');
 const STORE_KEY = 'kyukana:smallToLarge';
 const EMPTY = 'ここに旧かなが出ます';
@@ -31,7 +32,42 @@ try {
 function showMessage(text) {
   status.textContent = text;
   status.hidden = false;
+  output.replaceChildren();
   output.hidden = true;
+}
+
+/** 変換後の字（text）のうち元の字（source）から変わった所だけを圏点の span にする */
+function appendConverted(frag, seg) {
+  const to = Array.from(seg.text);
+  const from = Array.from(seg.source);
+  if (to.length !== from.length) {
+    const span = document.createElement('span');
+    span.className = 'converted';
+    span.textContent = seg.text;
+    frag.append(span);
+    return;
+  }
+  let run = '';
+  let runChanged = false;
+  const flush = () => {
+    if (!run) return;
+    if (runChanged) {
+      const span = document.createElement('span');
+      span.className = 'converted';
+      span.textContent = run;
+      frag.append(span);
+    } else {
+      frag.append(document.createTextNode(run));
+    }
+    run = '';
+  };
+  to.forEach((ch, i) => {
+    const changed = ch !== from[i];
+    if (changed !== runChanged) flush();
+    runChanged = changed;
+    run += ch;
+  });
+  flush();
 }
 
 function render() {
@@ -41,31 +77,44 @@ function render() {
   if (text === '') {
     showMessage(EMPTY);
   } else {
-    const r = converter.convert(text, { smallToLarge: small.checked });
-    out = r.output;
-    const frag = document.createDocumentFragment();
-    for (const seg of r.segments) {
-      if (seg.status === 'kept') {
-        frag.append(document.createTextNode(seg.text));
-        continue;
-      }
+    let r;
+    try {
+      r = converter.convert(text, { smallToLarge: small.checked });
+    } catch (e) {
+      console.error(e);
+      showMessage('変換できませんでした');
+      r = null;
+    }
+    if (r) renderResult(r);
+    out = r ? r.output : '';
+  }
+  finish(out);
+}
+
+function renderResult(r) {
+  const frag = document.createDocumentFragment();
+  for (const seg of r.segments) {
+    if (seg.status === 'kept') {
+      frag.append(document.createTextNode(seg.text));
+    } else if (seg.status === 'converted') {
+      appendConverted(frag, seg);
+    } else {
       const span = document.createElement('span');
       span.textContent = seg.text;
-      if (seg.status === 'unverified') {
-        span.className = 'unverified';
-        span.title = '未確認';
-      } else {
-        span.className = 'converted';
-      }
+      span.className = 'unverified';
+      span.title = '未確認';
       frag.append(span);
     }
-    output.replaceChildren(frag);
-    output.hidden = false;
-    status.hidden = true;
   }
+  output.replaceChildren(frag);
+  output.hidden = false;
+  status.hidden = true;
+}
+
+function finish(out) {
   result = out;
   const n = countX(out);
-  count.textContent = `${n} / ${X_LIMIT}`;
+  count.textContent = `${n} / ${X_LIMIT}${n > X_LIMIT ? '（超過）' : ''}`;
   count.classList.toggle('over', n > X_LIMIT);
   copyBtn.disabled = out === '';
   if (out === '') {
@@ -79,9 +128,11 @@ function render() {
 
 function flashCopy(label) {
   copyBtn.textContent = label;
+  copyLive.textContent = label;
   clearTimeout(copyTimer);
   copyTimer = setTimeout(() => {
     copyBtn.textContent = 'コピー';
+    copyLive.textContent = '';
   }, 1500);
 }
 
@@ -128,7 +179,6 @@ small.addEventListener('change', () => {
   render();
 });
 copyBtn.addEventListener('click', copy);
-copyBtn.setAttribute('aria-live', 'polite');
 post.addEventListener('click', (e) => {
   if (post.getAttribute('aria-disabled') === 'true') e.preventDefault();
 });

@@ -112,8 +112,8 @@ describe('未確認', () => {
   test('変換した所は converted', () => {
     const r = conv.convert('言わない');
     assert.deepEqual(r.segments, [
-      { text: '言は', status: 'converted' },
-      { text: 'ない', status: 'kept' },
+      { text: '言は', status: 'converted', source: '言わ' },
+      { text: 'ない', status: 'kept', source: 'ない' },
     ]);
   });
 });
@@ -180,11 +180,11 @@ describe('レビュー指摘への対応', () => {
 
   test('小書き→大書きだけで変わった語も converted', () => {
     assert.deepEqual(conv.convert('買った').segments, [
-      { text: '買つ', status: 'converted' },
-      { text: 'た', status: 'kept' },
+      { text: '買つ', status: 'converted', source: '買っ' },
+      { text: 'た', status: 'kept', source: 'た' },
     ]);
     assert.deepEqual(conv.convert('買った', { smallToLarge: false }).segments, [
-      { text: '買った', status: 'kept' },
+      { text: '買った', status: 'kept', source: '買った' },
     ]);
   });
 });
@@ -255,5 +255,20 @@ describe('ブランチ全体レビューの指摘', () => {
         assert.equal(notKana(r.output), notKana(input), JSON.stringify(input));
       }
     }
+  });
+});
+
+describe('segments.source', () => {
+  for (const input of ['そうでしょう', '今日は雨が降っているので、ヤバい。', 'ほげ ふが']) {
+    test(`source を連結すると入力に戻る: ${input}`, () => {
+      const { segments } = conv.convert(input);
+      assert.equal(segments.map((s) => s.source).join(''), input);
+    });
+  }
+  test('converted の source は元の字を持つ', () => {
+    const { segments } = conv.convert('そうでしょう');
+    const converted = segments.filter((s) => s.status === 'converted');
+    assert.ok(converted.length > 0);
+    assert.ok(converted.every((s) => 'そうでしょう'.includes(s.source) && s.source !== s.text));
   });
 });
