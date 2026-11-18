@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#EEF0EC">
+  <meta name="description" content="いまの仮名遣いで書いた文を、歴史的仮名遣い（旧かな）に直します。入力した文は端末の外に送りません。">
+  <title>旧かな変換</title>
+  <link rel="icon" type="image/svg+xml" href="/kyukana-converter/favicon.svg">
+</head>
+<body>
+  <main>
+    <h1>旧かな変換</h1>
+    <p class="lead">いまの仮名遣いで書くと、歴史的仮名遣いに直します。</p>
+
+    <label class="sr-only" for="input">変換する文</label>
+    <textarea id="input" rows="4" autocomplete="off" spellcheck="false" placeholder="ここに文を入力"></textarea>
+
+    <label class="opt"><input type="checkbox" id="small-to-large" checked> 小さい「っ」「ゃ」などを大きく書く</label>
+
+    <section class="result" aria-labelledby="result-h">
+      <h2 id="result-h">変換結果</h2>
+      <p id="status" role="status">辞書を読み込んでいます…</p>
+      <p id="output" class="output" hidden></p>
+    </section>
+
+    <p class="legend"><span class="converted">旧</span>かなに直した字　<span class="unverified">未</span>辞書で確かめられず、そのまま残した所</p>
+    <p class="note">入力した文は、この端末の外には送りません。</p>
+  </main>
+
+  <div class="bar">
+    <span id="count" class="count">0 / 280</span>
+    <button type="button" id="copy" class="btn primary" disabled>コピー</button>
+    <a id="post" class="btn secondary" target="_blank" rel="noopener" aria-disabled="true">Xで投稿</a>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
