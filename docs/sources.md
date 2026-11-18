@@ -37,3 +37,16 @@
 
 ## X 投稿インテント
 - X Developer Platform「Web Intent」: https://docs.x.com/x-for-websites/post-button/guides/web-intent （閲覧日 2026-11-18）
+
+## 追記（辞書・テストの作成、2026-11-18）
+
+### wikt の使い方
+- 取得: `https://en.wiktionary.org/w/index.php?title=<見出し語>&action=raw`（汎用の User-Agent、見出し語だけを送る、毎秒2件以内）。
+- 読む欄: `{{ja-noun|…|hhira=…}}`・`{{ja-pos|…|hhira=…}}` の `hhira=`、動詞 `{{ja-verb|…|hist=…}}` の `hist=`。送り仮名の区切りの `.` は除いた。熟字訳など漢字見出しが `{{ja-see|…}}` だけの項は、指された仮名の項目を引き、その項の該当する語義（`ja-kanjitab` の `alt=` 等）の値だけを採った。
+- 項目ごとの出典URLは辞書の各項目に持たせない。見出し語（`kanji`、なければ `modern`）で `https://en.wiktionary.org/wiki/<見出し語>` を引くと確認できる。
+- `ja-verb` の `type=1` を godan、`type=2` を ichidan とした（居る＝いる は type=2、おる は type=1 で確認）。
+- 「ありがとうございます」は項目が「ありがたう ございます」と分かち書きで、「おはようございます」の項目が ございます を変えない形で載っているため、続けて「ありがたうございます」とした。
+
+### fuhyo の使い方
+- 付表の例語のうち、同じ漢字語で、変わる部分が付表の行と一致するものにだけ `src` に `fuhyo` を付けた（付表の各行の「現代仮名」「歴史的仮名」と例語を、辞書の `historical` が含むか機械で突き合わせた。不一致は競争の1件で、辞書から外した）。
+- 付表が仮名で書いている語（どうして・もう一つ・さうして・かうして・ようございます・ふくろふ・かげろふ）は付表だけを根拠にした語がある（`src` を参照）。
