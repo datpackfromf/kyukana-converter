@@ -24,8 +24,16 @@ test('unknown tokens have empty strings', async () => {
   const tokens = a.tokenize('🙂');
   assert.ok(tokens.length >= 1);
   for (const t of tokens) {
-    for (const k of ['surface', 'pos', 'pos1', 'pos2', 'cType', 'cForm', 'base', 'reading']) {
-      assert.equal(typeof t[k], 'string', k);
+    assert.equal(t.surface, '🙂');
+    for (const k of ['pos1', 'cType', 'cForm', 'base', 'reading']) {
+      assert.equal(t[k], '', k);
     }
   }
 });
+
+for (const input of ['\uFEFF今日は晴れ', '今日\uFEFFは', 'a\uFEFFb', 'ab\uD83D', '\uDE42x🙂']) {
+  test(`round-trips ${JSON.stringify(input)}`, async () => {
+    const a = await getNodeAnalyzer();
+    assert.equal(a.tokenize(input).map((t) => t.surface).join(''), input);
+  });
+}

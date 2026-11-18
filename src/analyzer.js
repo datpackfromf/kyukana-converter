@@ -18,8 +18,6 @@ import init, { TokenizerBuilder } from 'lindera-wasm-web-ipadic';
  */
 
 const CTYPE_PATTERN = /段|型|特殊・|^不変化/;
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
 
 /** @param {unknown} v @returns {string} */
 const str = (v) => (typeof v === 'string' && v !== '*' ? v : '');
@@ -59,24 +57,39 @@ export async function createAnalyzer(moduleOrPath) {
 
   return {
     tokenize(text) {
-      const bytes = encoder.encode(text);
+      // UTF-8 バイト位置 -> 元の文字列の UTF-16 位置。TextEncoder と同じ数え方
+      // （単独サロゲートは U+FFFD として3バイト）でずれないようにする。
+      const byteToIdx = [];
+      let b = 0;
+      for (let i = 0; i < text.length; ) {
+        const cp = text.codePointAt(i);
+        const units = cp > 0xffff ? 2 : 1;
+        const isLone = cp >= 0xd800 && cp <= 0xdfff;
+        const len = isLone ? 3 : cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+        for (let k = 0; k < len; k++) byteToIdx[b + k] = i;
+        b += len;
+        i += units;
+      }
+      byteToIdx[b] = text.length;
+      const idx = (byte) => byteToIdx[Math.min(Math.max(byte, 0), b)];
+
       /** @type {Token[]} */
       const out = [];
-      let pos = 0; // 処理済みのバイト位置
+      let pos = 0; // 処理済みの UTF-16 位置
       const fillTo = (end) => {
         if (end > pos) {
-          out.push(gapToken(decoder.decode(bytes.subarray(pos, end))));
+          out.push(gapToken(text.slice(pos, end)));
           pos = end;
         }
       };
       for (const raw of tokenizer.tokenize(text)) {
-        const start = Number(raw.byteStart);
-        const end = Number(raw.byteEnd);
+        const start = idx(Number(raw.byteStart));
+        const end = idx(Number(raw.byteEnd));
         if (end <= pos) continue;
         fillTo(start);
         const { cType, cForm } = normalizeConjugation(raw.conjugationType, raw.conjugationForm);
         out.push({
-          surface: decoder.decode(bytes.subarray(pos, end)),
+          surface: text.slice(pos, end),
           pos: str(raw.partOfSpeech),
           pos1: str(raw.partOfSpeechSubcategory1),
           pos2: str(raw.partOfSpeechSubcategory2),
@@ -87,7 +100,7 @@ export async function createAnalyzer(moduleOrPath) {
         });
         pos = end;
       }
-      fillTo(bytes.length);
+      fillTo(text.length);
       return out;
     },
   };
