@@ -16,12 +16,12 @@ function cpWeight(cp) {
 /** @param {string} text @returns {number} */
 export function countX(text) {
   let total = 0;
-  const rest = text.replace(/https?:\/\/\S+/g, () => {
+  const rest = text.normalize('NFC').replace(/https?:\/\/[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+/g, () => {
     total += URL_WEIGHT;
     return '';
   });
   for (const { segment } of segmenter.segment(rest)) {
-    if (/\p{Extended_Pictographic}/u.test(segment)) {
+    if (/\p{Extended_Pictographic}|^[\u{1F1E6}-\u{1F1FF}]|\u20E3/u.test(segment)) {
       total += 2;
     } else {
       for (const ch of segment) total += cpWeight(ch.codePointAt(0));
